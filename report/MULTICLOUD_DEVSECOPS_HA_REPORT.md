@@ -1,4 +1,5 @@
-# Multi-Cloud, DevSecOps & High Availability Report  
+# Multi-Cloud, DevSecOps & High Availability Report
+
 ## Pizza App Project — Detailed
 
 **Report focus:** Multi-Cloud strategy, DevSecOps practices, and High Availability (HA) implementations in the Pizza App project.  
@@ -8,12 +9,34 @@
 
 ## Table of Contents
 
-1. [Multi-Cloud Implementation](#1-multi-cloud-implementation)  
-2. [DevSecOps Practices](#2-devsecops-practices)  
-3. [High Availability (HA)](#3-high-availability-ha)  
-4. [Summary Tables](#4-summary-tables)  
-5. [Conclusion](#5-conclusion)  
-6. [Image Placeholders Index](#6-image-placeholders-index)
+1. [Multi-Cloud Implementation](#1-multi-cloud-implementation)
+2. [DevSecOps Practices](#2-devsecops-practices)
+3. [High Availability (HA)](#3-high-availability-ha)
+4. [Summary Tables](#4-summary-tables)
+5. [Conclusion](#5-conclusion)
+6. [Image index (where each image goes)](#6-image-index-where-each-image-goes)
+
+---
+
+## How to add images (replace placeholders)
+
+1. **Create an `images` folder** next to this report:  
+   `.github/report/images/`
+
+2. **Add your image files** there with these exact names:
+   - `img-01-multicloud-architecture.png` (§1.1)
+   - `img-02-terraform-resources.png` (§1.2)
+   - `img-03-packer-flow.png` (§1.3)
+   - `img-04-cicd-pipeline.png` (§1.4)
+   - `img-05-vault-secrets-flow.png` (§2.1)
+   - `img-06-devsecops-overview.png` (§2.4)
+   - `img-07-aws-ha-architecture.png` (§3.1)
+   - `img-08-azure-ha-architecture.png` (§3.2)
+   - `img-09-ha-comparison.png` (§3.5)
+
+3. **No need to edit the report** — each spot already uses Markdown image syntax `![...](images/filename.png)`. Once the file exists, it will show in GitHub, VS Code, etc.
+
+4. **Different path?** Change the path in the report, e.g. `images/` → `./screenshots/` or a full URL.
 
 ---
 
@@ -23,13 +46,12 @@
 
 The project deploys the **same MERN application** (MongoDB, Express, React, Node.js) on **two public clouds** in parallel. Both environments serve the same front-end and back-end; only the underlying infrastructure and cloud APIs differ.
 
-| Cloud   | Region / Location | Primary components |
-|---------|-------------------|---------------------|
-| **AWS** | `us-east-1`       | VPC, 2 Availability Zones, Application Load Balancer (ALB), Auto Scaling Group (ASG), EC2 (custom AMI from Packer) |
-| **Azure** | East US        | Resource group `mern-app-rg`, VNet, subnet, NSG, VM Scale Set (VMSS) `mern-vmss`, Standard Load Balancer `mern-app-lb`, static public IP |
+| Cloud     | Region / Location | Primary components                                                                                                                       |
+| --------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| **AWS**   | `us-east-1`       | VPC, 2 Availability Zones, Application Load Balancer (ALB), Auto Scaling Group (ASG), EC2 (custom AMI from Packer)                       |
+| **Azure** | East US           | Resource group `mern-app-rg`, VNet, subnet, NSG, VM Scale Set (VMSS) `mern-vmss`, Standard Load Balancer `mern-app-lb`, static public IP |
 
-> **📷 IMAGE PLACEHOLDER — Multi-cloud high-level architecture**  
-> *Insert image: Diagram showing Pizza App deployed on both AWS and Azure with shared components (Terraform, Packer, Vault, GitHub Actions). Suggested filename: `img-01-multicloud-architecture.png`*
+![Multi-cloud high-level architecture — Pizza App on AWS and Azure (Terraform, Packer, Vault, GitHub Actions)](images/img-01-multicloud-architecture.png)
 
 ### 1.2 Unified Infrastructure as Code (Terraform)
 
@@ -68,19 +90,18 @@ terraform {
 
 **Terraform file layout**
 
-| File | Description |
-|------|-------------|
-| `providers.tf` | AWS (us-east-1), Azure (features {}), Vault; S3 backend + DynamoDB lock |
-| `data.tf` | Vault KV v2 data source for secrets |
-| `AWS_network.tf` | VPC, subnets (2 AZs), IGW, route tables, security group |
-| `AWS_compute.tf` | Key pair, launch template, user-data, ALB, target group, listener, ASG |
-| `Azure_network.tf` | Resource group, VNet, subnet, NSG |
-| `Azure_compute.tf` | Linux VMSS; AWS ASG (same file) |
-| `Azure_LB.tf` | Public IP, load balancer, backend pool, health probe, LB rule |
-| `outputs.tf` | AWS ALB DNS, AWS instance IP, Azure RG, VMSS name, Azure LB public IP |
+| File               | Description                                                             |
+| ------------------ | ----------------------------------------------------------------------- |
+| `providers.tf`     | AWS (us-east-1), Azure (features {}), Vault; S3 backend + DynamoDB lock |
+| `data.tf`          | Vault KV v2 data source for secrets                                     |
+| `AWS_network.tf`   | VPC, subnets (2 AZs), IGW, route tables, security group                 |
+| `AWS_compute.tf`   | Key pair, launch template, user-data, ALB, target group, listener, ASG  |
+| `Azure_network.tf` | Resource group, VNet, subnet, NSG                                       |
+| `Azure_compute.tf` | Linux VMSS; AWS ASG (same file)                                         |
+| `Azure_LB.tf`      | Public IP, load balancer, backend pool, health probe, LB rule           |
+| `outputs.tf`       | AWS ALB DNS, AWS instance IP, Azure RG, VMSS name, Azure LB public IP   |
 
-> **📷 IMAGE PLACEHOLDER — Terraform resource map**  
-> *Insert image: Diagram or table of Terraform resources per cloud (VPC/ASG/ALB on AWS; RG/VNet/VMSS/LB on Azure). Suggested filename: `img-02-terraform-resources.png`*
+![Terraform resource map — resources per cloud (AWS: VPC/ASG/ALB; Azure: RG/VNet/VMSS/LB)](images/img-02-terraform-resources.png)
 
 ### 1.3 Consistent Base Images (Packer)
 
@@ -91,27 +112,27 @@ terraform {
 
 **AWS builder (`amazon-ebs.ubuntu_base`)**
 
-| Setting | Value |
-|---------|--------|
-| Region | `us-east-1` |
-| Instance type | `t2.micro` |
-| SSH username | `ubuntu` |
-| AMI name | `mern-base-image-{{timestamp}}` |
-| VPC ID | Set in `build.pkr.hcl` (e.g. `vpc-028581e5eb7ed274f`) |
-| Subnet ID | Set in `build.pkr.hcl` (e.g. `subnet-047768671da863997`) |
-| Source AMI | Canonical Ubuntu 22.04 (`ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*`), EBS, HVM, owner `099720109477` |
+| Setting       | Value                                                                                                              |
+| ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Region        | `us-east-1`                                                                                                        |
+| Instance type | `t2.micro`                                                                                                         |
+| SSH username  | `ubuntu`                                                                                                           |
+| AMI name      | `mern-base-image-{{timestamp}}`                                                                                    |
+| VPC ID        | Set in `build.pkr.hcl` (e.g. `vpc-028581e5eb7ed274f`)                                                              |
+| Subnet ID     | Set in `build.pkr.hcl` (e.g. `subnet-047768671da863997`)                                                           |
+| Source AMI    | Canonical Ubuntu 22.04 (`ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*`), EBS, HVM, owner `099720109477` |
 
 **Azure builder (`azure-arm.ubuntu_base`)**
 
-| Setting | Value |
-|---------|--------|
-| OS type | Linux |
-| Build resource group | `packer-build-rg` |
-| VM size | `Standard_B1s` |
-| Source image | Canonical `0001-com-ubuntu-server-jammy`, sku `22_04-lts` |
-| Managed image resource group | `mern-app-rg` |
-| Managed image name | `mern-base-image-{{timestamp}}` |
-| Auth | `use_azure_cli_auth = true` (uses `az login`) |
+| Setting                      | Value                                                     |
+| ---------------------------- | --------------------------------------------------------- |
+| OS type                      | Linux                                                     |
+| Build resource group         | `packer-build-rg`                                         |
+| VM size                      | `Standard_B1s`                                            |
+| Source image                 | Canonical `0001-com-ubuntu-server-jammy`, sku `22_04-lts` |
+| Managed image resource group | `mern-app-rg`                                             |
+| Managed image name           | `mern-base-image-{{timestamp}}`                           |
+| Auth                         | `use_azure_cli_auth = true` (uses `az login`)             |
 
 **Shared provisioning: Ansible playbook**
 
@@ -135,8 +156,7 @@ terraform {
 
 Result: **identical runtime environment** (Ubuntu 22.04, Node 20, Nginx, PM2, app dirs) on both AWS and Azure base images.
 
-> **📷 IMAGE PLACEHOLDER — Packer build flow**  
-> *Insert image: Flow diagram — Ubuntu 22.04 → Packer AWS + Azure builders → Ansible deploy.yml → MERN base image for both clouds. Suggested filename: `img-03-packer-flow.png`*
+![Packer build flow — Ubuntu 22.04 → Packer (AWS + Azure) → Ansible deploy.yml → MERN base image](images/img-03-packer-flow.png)
 
 ### 1.4 Single CI/CD Pipeline (GitHub Actions)
 
@@ -154,10 +174,10 @@ Result: **identical runtime environment** (Ubuntu 22.04, Node 20, Nginx, PM2, ap
 
 **Jobs (run in parallel)**
 
-| Job | Name | Runner | Purpose |
-|-----|------|--------|---------|
-| `refresh-aws` | Refresh AWS Auto Scaling Group | `ubuntu-latest` | Start instance refresh on ASG `mern-asg` |
-| `refresh-azure` | Refresh Azure VMSS | `ubuntu-latest` | Upgrade all VMSS instances for `mern-vmss` |
+| Job             | Name                           | Runner          | Purpose                                    |
+| --------------- | ------------------------------ | --------------- | ------------------------------------------ |
+| `refresh-aws`   | Refresh AWS Auto Scaling Group | `ubuntu-latest` | Start instance refresh on ASG `mern-asg`   |
+| `refresh-azure` | Refresh Azure VMSS             | `ubuntu-latest` | Upgrade all VMSS instances for `mern-vmss` |
 
 **AWS job steps**
 
@@ -217,8 +237,7 @@ jobs:
             --instance-ids "*"
 ```
 
-> **📷 IMAGE PLACEHOLDER — CI/CD pipeline diagram**  
-> *Insert image: GitHub Actions workflow — push to master → refresh-aws + refresh-azure (parallel), OIDC to AWS and Azure. Suggested filename: `img-04-cicd-pipeline.png`*
+![CI/CD pipeline — push to master → refresh-aws + refresh-azure (parallel), OIDC](images/img-04-cicd-pipeline.png)
 
 ### 1.5 Secrets and configuration (single store for both clouds)
 
@@ -241,11 +260,11 @@ jobs:
 
 **Principle:** No secrets in source code or long-lived credentials in the pipeline.
 
-| Practice | Implementation |
-|----------|----------------|
+| Practice               | Implementation                                                                                                                        |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | **No secrets in code** | GitHub token and MongoDB URI are read from **HashiCorp Vault** KV v2 path `secret/sample-secret` (keys: `github_token`, `MONGO_URI`). |
-| **Terraform + Vault** | `data.tf` declares `vault_kv_secret_v2`; Terraform injects these values into EC2 user-data at apply time. |
-| **Backend .env** | Local dev uses `.env` (from `.env.example`); `.env` is not committed. Production instances get Vault-injected values in user-data. |
+| **Terraform + Vault**  | `data.tf` declares `vault_kv_secret_v2`; Terraform injects these values into EC2 user-data at apply time.                             |
+| **Backend .env**       | Local dev uses `.env` (from `.env.example`); `.env` is not committed. Production instances get Vault-injected values in user-data.    |
 
 **Vault data source (`data.tf`):**
 
@@ -272,8 +291,7 @@ provider "vault" {
 }
 ```
 
-> **📷 IMAGE PLACEHOLDER — Secrets flow (Vault → Terraform → instances)**  
-> *Insert image: Diagram showing Vault KV v2 → Terraform data source → user-data (clone + .env). Suggested filename: `img-05-vault-secrets-flow.png`*
+![Secrets flow — Vault KV v2 → Terraform data source → user-data (clone + .env)](images/img-05-vault-secrets-flow.png)
 
 ### 2.2 Secure CI/CD (OIDC)
 
@@ -306,16 +324,15 @@ provider "vault" {
 
 ### 2.4 DevSecOps summary table
 
-| Area | What is done |
-|------|----------------------|
-| **Secrets** | Vault KV v2; no secrets in source or long-lived in CI |
-| **CI/CD auth** | OIDC for AWS and Azure; no static keys |
-| **State** | S3 + encryption + DynamoDB lock |
-| **Network** | SG (AWS) and NSG (Azure) limit to HTTP/HTTPS/SSH; SSH restriction recommended for prod |
-| **App** | CORS; env-based config (Vault-injected in prod) |
+| Area           | What is done                                                                           |
+| -------------- | -------------------------------------------------------------------------------------- |
+| **Secrets**    | Vault KV v2; no secrets in source or long-lived in CI                                  |
+| **CI/CD auth** | OIDC for AWS and Azure; no static keys                                                 |
+| **State**      | S3 + encryption + DynamoDB lock                                                        |
+| **Network**    | SG (AWS) and NSG (Azure) limit to HTTP/HTTPS/SSH; SSH restriction recommended for prod |
+| **App**        | CORS; env-based config (Vault-injected in prod)                                        |
 
-> **📷 IMAGE PLACEHOLDER — DevSecOps overview**  
-> *Insert image: Diagram covering Vault, OIDC, encrypted state, network controls, CORS. Suggested filename: `img-06-devsecops-overview.png`*
+![DevSecOps overview — Vault, OIDC, encrypted state, network controls, CORS](images/img-06-devsecops-overview.png)
 
 ---
 
@@ -356,8 +373,7 @@ provider "vault" {
 
 **Result:** Two EC2 instances in two AZs behind one ALB; loss of one instance or one AZ still leaves the app served by the other instance(s).
 
-> **📷 IMAGE PLACEHOLDER — AWS HA architecture**  
-> *Insert image: Diagram — Internet → ALB (in 2 AZs) → Target Group → 2 EC2 instances (one per AZ), with health checks. Suggested filename: `img-07-aws-ha-architecture.png`*
+![AWS HA architecture — Internet → ALB (2 AZs) → Target Group → 2 EC2 instances, health checks](images/img-07-aws-ha-architecture.png)
 
 ### 3.2 Azure High Availability
 
@@ -382,19 +398,18 @@ provider "vault" {
 
 **Result:** Two VMs behind one Standard Load Balancer; health probe ensures traffic only to healthy instances.
 
-> **📷 IMAGE PLACEHOLDER — Azure HA architecture**  
-> *Insert image: Diagram — Internet → Public IP → Standard LB → Backend pool → 2 VMSS instances, with health probe. Suggested filename: `img-08-azure-ha-architecture.png`*
+![Azure HA architecture — Internet → Public IP → Standard LB → Backend pool → 2 VMSS instances, health probe](images/img-08-azure-ha-architecture.png)
 
 ### 3.3 HA comparison (detailed)
 
-| Aspect | AWS | Azure |
-|--------|-----|--------|
-| **Multi-AZ / spread** | 2 subnets in 2 AZs; ASG + ALB in both | Single region (East US); VMSS in one subnet (can add zones in Terraform) |
-| **Instance count** | 2 (min = desired = max = 2) | 2 (`instances = 2`) |
-| **Load balancer** | Application Load Balancer, public | Standard Load Balancer, static public IP |
-| **Health check** | ALB target group: path `/`, interval 30 s, healthy 2, unhealthy 5, timeout 5 s, matcher 200 | LB probe: HTTP port 80, path `/` |
-| **Auto-recovery** | ASG replaces unhealthy (ELB health); grace 300 s | LB stops forwarding to unhealthy; VMSS can add auto-repair/scale policies |
-| **Instance type** | t2.micro (launch template) | Standard_B2ms |
+| Aspect                | AWS                                                                                         | Azure                                                                     |
+| --------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Multi-AZ / spread** | 2 subnets in 2 AZs; ASG + ALB in both                                                       | Single region (East US); VMSS in one subnet (can add zones in Terraform)  |
+| **Instance count**    | 2 (min = desired = max = 2)                                                                 | 2 (`instances = 2`)                                                       |
+| **Load balancer**     | Application Load Balancer, public                                                           | Standard Load Balancer, static public IP                                  |
+| **Health check**      | ALB target group: path `/`, interval 30 s, healthy 2, unhealthy 5, timeout 5 s, matcher 200 | LB probe: HTTP port 80, path `/`                                          |
+| **Auto-recovery**     | ASG replaces unhealthy (ELB health); grace 300 s                                            | LB stops forwarding to unhealthy; VMSS can add auto-repair/scale policies |
+| **Instance type**     | t2.micro (launch template)                                                                  | Standard_B2ms                                                             |
 
 ### 3.4 Terraform outputs (access and verification)
 
@@ -410,8 +425,7 @@ After `terraform apply`, outputs expose:
 - **Both:** Add a dedicated **health endpoint** (e.g. `GET /api/health`) that checks DB connectivity; point ALB/probe to it for more meaningful health checks.
 - **Database:** Use MongoDB replica sets or Atlas multi-region for DB-level HA; app already uses `MONGO_URI` from env/Vault.
 
-> **📷 IMAGE PLACEHOLDER — HA comparison (AWS vs Azure)**  
-> *Insert image: Side-by-side or combined diagram of AWS 2-AZ + ALB + ASG vs Azure VMSS + LB. Suggested filename: `img-09-ha-comparison.png`*
+![HA comparison — AWS (2 AZ, ALB, ASG) vs Azure (VMSS, LB) side by side](images/img-09-ha-comparison.png)
 
 ---
 
@@ -419,33 +433,33 @@ After `terraform apply`, outputs expose:
 
 ### 4.1 Multi-cloud
 
-| Item | Detail |
-|------|--------|
-| **Clouds** | AWS (us-east-1), Azure (East US) |
-| **IaC** | Single Terraform codebase; S3 state + DynamoDB lock |
-| **Base images** | Packer: one config, two builders (AMI + Azure Managed Image); same Ansible playbook |
-| **CI/CD** | One GitHub Actions workflow; two jobs (AWS refresh, Azure VMSS update) on push to master |
-| **Secrets** | Single Vault path for both clouds |
+| Item            | Detail                                                                                   |
+| --------------- | ---------------------------------------------------------------------------------------- |
+| **Clouds**      | AWS (us-east-1), Azure (East US)                                                         |
+| **IaC**         | Single Terraform codebase; S3 state + DynamoDB lock                                      |
+| **Base images** | Packer: one config, two builders (AMI + Azure Managed Image); same Ansible playbook      |
+| **CI/CD**       | One GitHub Actions workflow; two jobs (AWS refresh, Azure VMSS update) on push to master |
+| **Secrets**     | Single Vault path for both clouds                                                        |
 
 ### 4.2 DevSecOps
 
-| Item | Detail |
-|------|--------|
-| **Secrets** | Vault KV v2; Terraform injects into user-data; no secrets in code |
-| **CI/CD auth** | OIDC for AWS and Azure; no long-lived keys |
-| **State** | S3 encrypted + DynamoDB lock |
-| **Network** | SG (AWS) and NSG (Azure): HTTP, HTTPS, SSH; restrict SSH in prod |
-| **App** | CORS; env-based config |
+| Item           | Detail                                                            |
+| -------------- | ----------------------------------------------------------------- |
+| **Secrets**    | Vault KV v2; Terraform injects into user-data; no secrets in code |
+| **CI/CD auth** | OIDC for AWS and Azure; no long-lived keys                        |
+| **State**      | S3 encrypted + DynamoDB lock                                      |
+| **Network**    | SG (AWS) and NSG (Azure): HTTP, HTTPS, SSH; restrict SSH in prod  |
+| **App**        | CORS; env-based config                                            |
 
 ### 4.3 High availability
 
-| Item | AWS | Azure |
-|------|-----|--------|
-| **Instances** | 2 (ASG) | 2 (VMSS) |
-| **Spread** | 2 AZs | 1 region (can add zones) |
-| **Load balancer** | ALB | Standard LB |
-| **Health check** | ALB TG: `/`, 30 s | LB probe: `/`, HTTP 80 |
-| **Recovery** | ASG + ELB health, 300 s grace | LB + probe; VMSS can add policies |
+| Item              | AWS                           | Azure                             |
+| ----------------- | ----------------------------- | --------------------------------- |
+| **Instances**     | 2 (ASG)                       | 2 (VMSS)                          |
+| **Spread**        | 2 AZs                         | 1 region (can add zones)          |
+| **Load balancer** | ALB                           | Standard LB                       |
+| **Health check**  | ALB TG: `/`, 30 s             | LB probe: `/`, HTTP 80            |
+| **Recovery**      | ASG + ELB health, 300 s grace | LB + probe; VMSS can add policies |
 
 ---
 
@@ -455,31 +469,24 @@ The Pizza App project implements **multi-cloud** by running the same MERN stack 
 
 ---
 
-## 6. Image Placeholders Index
+## 6. Image index (where each image goes)
 
-Use this list to add or replace images in the report. Suggested filenames assume an `images/` folder in the report directory.
+The report already uses Markdown image links. **Add your image files** to `.github/report/images/` with these exact names — they will then appear in the report.
 
-| # | Placeholder location | Suggested filename | Description |
-|---|----------------------|--------------------|-------------|
-| 1 | §1.1 Overview | `img-01-multicloud-architecture.png` | High-level multi-cloud architecture (AWS + Azure, Terraform, Packer, Vault, GitHub Actions) |
-| 2 | §1.2 Terraform | `img-02-terraform-resources.png` | Terraform resource map per cloud |
-| 3 | §1.3 Packer | `img-03-packer-flow.png` | Packer build flow: Ubuntu → AWS + Azure builders → Ansible → base images |
-| 4 | §1.4 CI/CD | `img-04-cicd-pipeline.png` | GitHub Actions: push → refresh-aws + refresh-azure (OIDC) |
-| 5 | §2.1 Secrets | `img-05-vault-secrets-flow.png` | Vault → Terraform → user-data (clone + .env) |
-| 6 | §2.4 DevSecOps summary | `img-06-devsecops-overview.png` | DevSecOps overview (Vault, OIDC, state, network, CORS) |
-| 7 | §3.1 AWS HA | `img-07-aws-ha-architecture.png` | AWS: ALB, 2 AZs, target group, 2 EC2 instances, health checks |
-| 8 | §3.2 Azure HA | `img-08-azure-ha-architecture.png` | Azure: Public IP, LB, backend pool, 2 VMSS instances, probe |
-| 9 | §3.5 HA recommendations | `img-09-ha-comparison.png` | Side-by-side AWS vs Azure HA comparison |
+| #   | Section        | Filename to add                      | What the image should show                                                     |
+| --- | -------------- | ------------------------------------ | ------------------------------------------------------------------------------ |
+| 1   | §1.1 Overview  | `img-01-multicloud-architecture.png` | High-level multi-cloud (AWS + Azure, Terraform, Packer, Vault, GitHub Actions) |
+| 2   | §1.2 Terraform | `img-02-terraform-resources.png`     | Terraform resource map per cloud                                               |
+| 3   | §1.3 Packer    | `img-03-packer-flow.png`             | Packer flow: Ubuntu → AWS + Azure → Ansible → base images                      |
+| 4   | §1.4 CI/CD     | `img-04-cicd-pipeline.png`           | GitHub Actions: push → refresh-aws + refresh-azure (OIDC)                      |
+| 5   | §2.1 Secrets   | `img-05-vault-secrets-flow.png`      | Vault → Terraform → user-data (clone + .env)                                   |
+| 6   | §2.4 DevSecOps | `img-06-devsecops-overview.png`      | DevSecOps (Vault, OIDC, state, network, CORS)                                  |
+| 7   | §3.1 AWS HA    | `img-07-aws-ha-architecture.png`     | AWS: ALB, 2 AZs, target group, 2 EC2, health checks                            |
+| 8   | §3.2 Azure HA  | `img-08-azure-ha-architecture.png`   | Azure: Public IP, LB, backend pool, 2 VMSS, probe                              |
+| 9   | §3.5 HA        | `img-09-ha-comparison.png`           | Side-by-side AWS vs Azure HA                                                   |
 
-**Adding images in Markdown:**  
-Replace each placeholder block with, for example:
-
-```markdown
-![Multi-cloud high-level architecture](images/img-01-multicloud-architecture.png)
-```
-
-Ensure the `images/` directory exists and place the image files there, or adjust paths to match your layout.
+**Markdown syntax used:** `![Alt text](images/filename.png)` — to use another folder or URL, edit that path in the report.
 
 ---
 
-*End of Multi-Cloud, DevSecOps & High Availability Report — Detailed*
+_End of Multi-Cloud, DevSecOps & High Availability Report — Detailed_
